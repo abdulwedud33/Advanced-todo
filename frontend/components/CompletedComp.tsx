@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 
 interface CompletedCompProps {
-  id: string;
+  _id: string;
   value: string;
   title: string;
   content: string;
@@ -28,7 +28,7 @@ const CompletedComp: React.FC<CompletedCompProps> = (props) => {
   const router = useRouter(); // Initialize the router
 
   const handleDelete = async () => {
-    await markTaskAsDelete(props.id); // Call the delete function
+    await markTaskAsDelete(props._id); // Call the delete function
     router.refresh(); // Refresh the page to reflect changes
   };
 

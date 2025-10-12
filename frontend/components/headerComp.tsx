@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import LogoImage from "../public/protonlogo.png";
 
 interface user {
-  id: string;
+  _id: string;
   name: string;
   email: string;
 }

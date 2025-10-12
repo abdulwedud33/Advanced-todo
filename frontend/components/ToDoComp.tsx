@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation"; // Import useRouter from next/navigation
 
 interface ToDoCompProps {
-  id: string;
+  _id: string;
   value: string;
   title: string;
   content: string;
@@ -18,7 +18,6 @@ const markTaskAsDone = async (id: string) => {
     headers: {
       "Content-Type": "application/json",
     },
-
     body: JSON.stringify({ id }),
   });
   if (!res.ok) {
@@ -54,14 +53,14 @@ const ToDoComp: React.FC<ToDoCompProps> = (props) => {
   const router = useRouter(); // Initialize the router
 
   const handleUpdate = async () => {
-    await editTask(props.id, { title: updatedTitle, content: updatedContent });
+    await editTask(props._id, { title: updatedTitle, content: updatedContent });
     setIsModalOpen(false);
     router.refresh(); // Refresh the page to reflect changes
     // Optionally, refresh the page or update the UI to reflect changes
   };
 
   const handleDone = async () => {
-    await markTaskAsDone(props.id);
+    await markTaskAsDone(props._id);
     router.refresh(); // Redirect to the home page after marking as
   };
 

@@ -37,9 +37,9 @@ export default function Home() {
         <div className="grid justify-center items-center grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-10 mt-4 px-6 mb-15">
           {data?.map((item: any) => (
             <ToDoComp
-              value={item.id}
-              id={item.id}
-              key={item.id}
+              value={item._id}
+              _id={item._id}
+              key={item._id}
               title={item.title}
               content={item.content}
             />

@@ -1,38 +1,29 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import pkg from "pg";
-const { Pool } = pkg;
+import mongoose from "mongoose";
 import passport from "passport";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import MongoStore from "connect-mongo";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv from "dotenv";
+import User from "./models/User.js";
+import Task from "./models/Task.js";
+
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: Number(process.env.DB_PORT),
-  ssl: {
-    rejectUnauthorized: false,
-  },
+// Connect to MongoDB using your existing environment variables
+const mongoUri = process.env.MONGODB_URI;
+mongoose.connect(mongoUri)
+.then(() => {
+  console.log("Connected to MongoDB successfully");
+})
+.catch((err) => {
+  console.error("MongoDB connection error:", err);
 });
-
-pool
-  .connect()
-  .then((client) => {
-    console.log("Connected to the database successfully");
-    client.release();
-  })
-  .catch((err) => {
-    console.error("Database connection error:", err.stack);
-  });
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -40,7 +31,7 @@ app.use(bodyParser.json());
 
 app.use(
   cors({
-    origin: "https://advanced-todo-frontend.vercel.app", // removed trailing slash
+    origin: process.env.FRONTEND_URL || process.env.CLIENT_URL,
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
   })
@@ -48,18 +39,20 @@ app.use(
 
 app.use(express.static("public"));
 
-const pgSession = connectPgSimple(session);
-
-app.set("trust proxy", 1); // Trust first proxy for secure cookies in production
+// Session configuration with MongoDB store
+app.set("trust proxy", 1);
 app.use(
   session({
-    store: new pgSession({ pool }),
+    store: MongoStore.create({
+      mongoUrl: mongoUri,
+      touchAfter: 24 * 3600, // lazy session update
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
       sameSite: "none",
-      secure: process.env.NODE_ENV, // Set to true if using HTTPS
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
@@ -71,6 +64,7 @@ app.use(passport.session());
 
 app.set("view engine", "ejs");
 
+// Passport Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -81,28 +75,21 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const result = await pool.query(
-          "SELECT * FROM users WHERE google_id = $1",
-          [profile.id]
-        );
+        // Check if user exists
+        let user = await User.findOne({ googleId: profile.id });
 
-        let user;
-
-        if (result.rows.length > 0) {
-          user = result.rows[0];
+        if (user) {
+          return done(null, user);
         } else {
-          const insertResult = await pool.query(
-            "INSERT INTO users (google_id, email, name) VALUES ($1, $2, $3) RETURNING *",
-            [
-              profile.id,
-              profile.emails?.[0]?.value || null,
-              profile.displayName || null,
-            ]
-          );
-          user = insertResult.rows[0];
+          // Create new user
+          user = new User({
+            googleId: profile.id,
+            email: profile.emails?.[0]?.value || null,
+            name: profile.displayName || null,
+          });
+          await user.save();
+          return done(null, user);
         }
-
-        return done(null, user);
       } catch (err) {
         return done(err);
       }
@@ -111,13 +98,12 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, user.id);
+  done(null, user._id);
 });
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
-    const user = result.rows[0];
+    const user = await User.findById(id);
     done(null, user);
   } catch (err) {
     done(err);
@@ -128,18 +114,21 @@ const ensureAuthenticated = (req, res, next) => {
   if (req.isAuthenticated()) {
     if (!req.user) {
       req.logout();
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
       return req.accepts("json")
         ? res.status(403).json({ error: "Invalid session" })
-        : res.redirect("https://advanced-todo-frontend.vercel.app/signIn");
+        : res.redirect(`${frontendUrl}/signIn`);
     }
     return next();
   }
 
+  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
   return req.accepts("json")
     ? res.status(401).json({ error: "Login required" })
-    : res.redirect("https://advanced-todo-frontend.vercel.app/signIn");
+    : res.redirect(`${frontendUrl}/signIn`);
 };
 
+// Routes
 app.get(
   "/auth/google",
   passport.authenticate("google", {
@@ -153,7 +142,8 @@ app.get(
   "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/signIn" }),
   (req, res) => {
-    res.redirect("https://advanced-todo-frontend.vercel.app/");
+    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+    res.redirect(`${frontendUrl}/`);
   }
 );
 
@@ -171,136 +161,149 @@ app.get("/signOut", (req, res) => {
       }
 
       res.clearCookie("connect.sid");
-      res.redirect("https://advanced-todo-frontend.vercel.app/signIn");
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+      res.redirect(`${frontendUrl}/signIn`);
     });
   });
 });
 
 app.get("/signIn", (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
   if (req.isAuthenticated()) {
-    return res.redirect("https://advanced-todo-frontend.vercel.app/");
+    return res.redirect(`${frontendUrl}/`);
   }
-  res.redirect("https://advanced-todo-frontend.vercel.app/signIn");
+  res.redirect(`${frontendUrl}/signIn`);
 });
 
+// Get all incomplete tasks for the authenticated user
 app.get("/", ensureAuthenticated, async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM tasks WHERE user_id = $1 AND is_completed = $2",
-      [req.user.id, false]
-    );
-    const tasks = result.rows;
+    const tasks = await Task.find({ 
+      userId: req.user._id, 
+      isCompleted: false 
+    }).sort({ createdAt: -1 });
+    
     if (tasks.length === 0) {
       return res.status(404).json({ message: "No tasks found" });
     }
     res.json(tasks);
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).send("Error executing query");
+    console.error("Error fetching tasks:", error);
+    res.status(500).json({ error: "Error fetching tasks" });
   }
 });
 
+// Get user information
 app.get("/user", ensureAuthenticated, async (req, res) => {
   console.log("Session:", req.session);
   console.log("User:", req.user);
   console.log("isAuthenticated:", req.isAuthenticated?.());
   try {
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [
-      req.user.id,
-    ]);
-    const user = result.rows[0];
+    const user = await User.findById(req.user._id);
     res.json(user);
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).send("Error executing query");
+    console.error("Error fetching user:", error);
+    res.status(500).json({ error: "Error fetching user" });
   }
 });
 
+// Add a new task
 app.post("/add", ensureAuthenticated, async (req, res) => {
   const { title, content } = req.body;
   if (!title || !content) {
-    return res.status(400).send("Title and content are required");
+    return res.status(400).json({ error: "Title and content are required" });
   }
   try {
-    await pool.query(
-      "INSERT INTO tasks (title, content, user_id) VALUES ($1, $2, $3)",
-      [title, content, req.user.id]
-    );
-    res.status(201).send("Task added successfully");
+    const task = new Task({
+      title,
+      content,
+      userId: req.user._id,
+    });
+    await task.save();
+    res.status(201).json({ message: "Task added successfully", task });
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).send("Error executing query");
+    console.error("Error adding task:", error);
+    res.status(500).json({ error: "Error adding task" });
   }
 });
 
+// Get completed tasks
 app.get("/completed", ensureAuthenticated, async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM tasks WHERE is_completed = $1 AND user_id = $2",
-      [true, req.user.id]
-    );
-    res.json(result.rows);
+    const tasks = await Task.find({ 
+      isCompleted: true, 
+      userId: req.user._id 
+    }).sort({ updatedAt: -1 });
+    res.json(tasks);
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).send("Error executing query");
+    console.error("Error fetching completed tasks:", error);
+    res.status(500).json({ error: "Error fetching completed tasks" });
   }
 });
 
+// Mark task as completed
 app.patch("/done", ensureAuthenticated, async (req, res) => {
   const { id } = req.body;
-  if (!id) return res.status(400).send("ID is required");
+  if (!id) return res.status(400).json({ error: "ID is required" });
 
   try {
-    const result = await pool.query(
-      "UPDATE tasks SET is_completed = $1 WHERE id = $2 AND user_id = $3",
-      [true, id, req.user.id]
+    const task = await Task.findOneAndUpdate(
+      { _id: id, userId: req.user._id },
+      { isCompleted: true },
+      { new: true }
     );
-    if (result.rowCount === 0) {
-      return res.status(404).send("Task not found");
+    
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
     }
-    res.status(200).send("Task marked as completed");
+    res.status(200).json({ message: "Task marked as completed" });
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).send("Error executing query");
+    console.error("Error updating task:", error);
+    res.status(500).json({ error: "Error updating task" });
   }
 });
 
+// Delete completed task
 app.delete("/completed/delete", ensureAuthenticated, async (req, res) => {
   const { id } = req.body;
-  if (!id) return res.status(400).send("ID is required");
+  if (!id) return res.status(400).json({ error: "ID is required" });
 
   try {
-    const result = await pool.query(
-      "DELETE FROM tasks WHERE id = $1 AND user_id = $2",
-      [id, req.user.id]
-    );
-    if (result.rowCount === 0) {
-      return res.status(404).send("Task not found");
+    const task = await Task.findOneAndDelete({ 
+      _id: id, 
+      userId: req.user._id 
+    });
+    
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
     }
-    res.status(200).send("Task deleted successfully");
+    res.status(200).json({ message: "Task deleted successfully" });
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).send("Error executing query");
+    console.error("Error deleting task:", error);
+    res.status(500).json({ error: "Error deleting task" });
   }
 });
 
+// Edit task
 app.patch("/edit", ensureAuthenticated, async (req, res) => {
   const { id, title, content } = req.body;
   if (!id || !title || !content) {
-    return res.status(400).send("ID, title, and content are required");
+    return res.status(400).json({ error: "ID, title, and content are required" });
   }
   try {
-    const result = await pool.query(
-      "UPDATE tasks SET title = $1, content = $2 WHERE id = $3 AND user_id = $4",
-      [title, content, id, req.user.id]
+    const task = await Task.findOneAndUpdate(
+      { _id: id, userId: req.user._id },
+      { title, content },
+      { new: true }
     );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Task not found" });
+    
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
     }
-    res.status(200).send("Task updated successfully");
+    res.status(200).json({ message: "Task updated successfully" });
   } catch (error) {
-    console.error("Error executing query", error.stack);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error updating task:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
