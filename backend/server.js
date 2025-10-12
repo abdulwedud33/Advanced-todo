@@ -135,6 +135,7 @@ app.get(
     scope: ["profile", "email", "openid"],
     failureRedirect: "/signIn",
     accessType: "offline",
+    prompt: "select_account"
   })
 );
 
