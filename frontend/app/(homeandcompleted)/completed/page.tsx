@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import CompletedComp from "@/components/CompletedComp";
 import { useAuth } from "@/contexts/AuthContext";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 
 async function fetchData() {
   const res = await fetch(`${baseUrl}/completed`, {

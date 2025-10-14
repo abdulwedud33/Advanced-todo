@@ -9,7 +9,7 @@ interface CompletedCompProps {
   content: string;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 const markTaskAsDelete = async (id: string) => {
   const res = await fetch(`${baseUrl}/completed/delete`, {
     method: "DELETE",

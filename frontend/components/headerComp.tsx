@@ -23,7 +23,7 @@ export default function Header() {
       return;
     }
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
       const res = await fetch(`${baseUrl}/add`, {
         method: "POST",
         credentials: "include",
