@@ -1,12 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FcGoogle } from "react-icons/fc";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
 
 const SignInComp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      router.push("/");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-800"></div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return null; // Will redirect
+  }
 
   return (
     <>
@@ -54,16 +77,6 @@ const SignInComp = () => {
             </button>
           </form>
         </div>
-
-        <button
-          onClick={() => {
-            // Handle sign-out logic here
-            window.location.href = `${baseUrl}/signOut`;
-          }}
-          className="mt-4 px-4 py-2 bg-red-700 hover:cursor-pointer text-white rounded hover:bg-red-800 transition"
-        >
-          Sign Out
-        </button>
       </div>
     </>
   );

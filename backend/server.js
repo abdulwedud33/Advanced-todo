@@ -31,7 +31,10 @@ app.use(bodyParser.json());
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || process.env.CLIENT_URL,
+    origin: [
+      process.env.FRONTEND_URL || "https://advanced-todo-sable.vercel.app",
+      process.env.CLIENT_URL || "http://localhost:3000"
+    ],
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
   })
@@ -114,7 +117,7 @@ const ensureAuthenticated = (req, res, next) => {
   if (req.isAuthenticated()) {
     if (!req.user) {
       req.logout();
-      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
       return req.accepts("json")
         ? res.status(403).json({ error: "Invalid session" })
         : res.redirect(`${frontendUrl}/signIn`);
@@ -122,7 +125,7 @@ const ensureAuthenticated = (req, res, next) => {
     return next();
   }
 
-  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
   return req.accepts("json")
     ? res.status(401).json({ error: "Login required" })
     : res.redirect(`${frontendUrl}/signIn`);
@@ -143,7 +146,7 @@ app.get(
   "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/signIn" }),
   (req, res) => {
-    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
     res.redirect(`${frontendUrl}/`);
   }
 );
@@ -162,14 +165,14 @@ app.get("/signOut", (req, res) => {
       }
 
       res.clearCookie("connect.sid");
-      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
       res.redirect(`${frontendUrl}/signIn`);
     });
   });
 });
 
 app.get("/signIn", (req, res) => {
-  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
   if (req.isAuthenticated()) {
     return res.redirect(`${frontendUrl}/`);
   }
@@ -191,6 +194,22 @@ app.get("/", ensureAuthenticated, async (req, res) => {
   } catch (error) {
     console.error("Error fetching tasks:", error);
     res.status(500).json({ error: "Error fetching tasks" });
+  }
+});
+
+// Check authentication status
+app.get("/auth/status", (req, res) => {
+  if (req.isAuthenticated() && req.user) {
+    res.json({ 
+      authenticated: true, 
+      user: {
+        _id: req.user._id,
+        name: req.user.name,
+        email: req.user.email
+      }
+    });
+  } else {
+    res.json({ authenticated: false });
   }
 });
 

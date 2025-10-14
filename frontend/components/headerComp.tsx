@@ -2,39 +2,19 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import LogoImage from "../public/protonlogo.png";
-
-interface user {
-  _id: string;
-  name: string;
-  email: string;
-}
-
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-async function getUser() {
-  const res = await fetch(`${baseUrl}/user`, {
-    method: "GET",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-  });
-  if (!res.ok) console.log("Failed to fetch data");
-  return res.json();
-}
 
 export default function Header() {
   const pathname = usePathname();
-  const [user, setUser] = useState<user | null>(null);
+  const { user, logout } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-
-  useEffect(() => {
-    getUser().then(setUser);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,16 +74,25 @@ export default function Header() {
           >
             Completed
           </Link>
-          <Link
-            href="/signIn"
-            className={
-              pathname === "/signIn"
-                ? "text-black"
-                : "text-gray-400 hover:text-black"
-            }
-          >
-            {userName ? "SignOut" : "SignIn"}
-          </Link>
+          {user ? (
+            <button
+              onClick={logout}
+              className="text-gray-400 hover:text-black"
+            >
+              SignOut
+            </button>
+          ) : (
+            <Link
+              href="/signIn"
+              className={
+                pathname === "/signIn"
+                  ? "text-black"
+                  : "text-gray-400 hover:text-black"
+              }
+            >
+              SignIn
+            </Link>
+          )}
         </nav>
 
         {/* Right controls: Add & Menu */}
@@ -196,13 +185,25 @@ export default function Header() {
             >
               Completed
             </Link>
-            <Link
-              href="/signIn"
-              className="py-2 w-full text-center"
-              onClick={() => setMenuOpen(false)}
-            >
-              {userName ? "Sign Out" : "Sign In"}
-            </Link>
+            {user ? (
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  logout();
+                }}
+                className="py-2 w-full text-center"
+              >
+                Sign Out
+              </button>
+            ) : (
+              <Link
+                href="/signIn"
+                className="py-2 w-full text-center"
+                onClick={() => setMenuOpen(false)}
+              >
+                Sign In
+              </Link>
+            )}
             <Link
               href="/"
               className="w-full text-cente"

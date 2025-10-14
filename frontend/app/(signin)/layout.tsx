@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Header from "../../components/headerComp";
 import FooterComp from "../../components/FooterComp";
+import { AuthProvider } from "../../contexts/AuthContext";
 import "../globals.css";
 
 export const metadata: Metadata = {
@@ -16,11 +17,11 @@ export default function SignInLayout({
   return (
     <html lang="en">
       <body>
-        <>
+        <AuthProvider>
           <Header />
           {children}
           <FooterComp />
-        </>
+        </AuthProvider>
       </body>
     </html>
   );

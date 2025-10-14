@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import CompletedComp from "@/components/CompletedComp";
+import { useAuth } from "@/contexts/AuthContext";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
 async function fetchData() {
   const res = await fetch(`${baseUrl}/completed`, {
     method: "GET",
@@ -14,23 +16,43 @@ async function fetchData() {
   });
   if (!res.ok) {
     console.log("Failed to fetch data");
+    return [];
   }
   const data = await res.json();
   return Array.isArray(data) ? data : [];
 }
 
 export default function CompletedTaskPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>([]);
+  const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated } = useAuth();
 
   const getUserData = async () => {
-    const currentData = await fetchData();
-    setData(currentData);
+    try {
+      setLoading(true);
+      const currentData = await fetchData();
+      setData(currentData);
+    } catch (error) {
+      console.error("Error fetching completed tasks:", error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
   };
-  // Call getUserData when the component mounts
+
   useEffect(() => {
-    getUserData();
-  }, []);
-  console.log(data);
+    if (isAuthenticated && user) {
+      getUserData();
+    }
+  }, [isAuthenticated, user]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-800"></div>
+      </div>
+    );
+  }
 
   return (
     <>
