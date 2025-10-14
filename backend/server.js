@@ -74,7 +74,6 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.GOOGLE_CALLBACK_URL,
-      userProfileURL: process.env.GOOGLE_USER_PROFILE_URL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -135,7 +134,7 @@ const ensureAuthenticated = (req, res, next) => {
 app.get(
   "/auth/google",
   passport.authenticate("google", {
-    scope: ["profile", "email", "openid"],
+    scope: ["profile", "email"],
     failureRedirect: "/signIn",
     accessType: "offline",
     prompt: "select_account"
