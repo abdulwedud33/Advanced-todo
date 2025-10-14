@@ -13,7 +13,7 @@ import Task from "./models/Task.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Connect to MongoDB using your existing environment variables
 const mongoUri = process.env.MONGODB_URI;
