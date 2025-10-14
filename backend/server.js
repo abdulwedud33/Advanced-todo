@@ -32,8 +32,7 @@ app.use(bodyParser.json());
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL || "https://advanced-todo-sable.vercel.app",
-      process.env.CLIENT_URL || "http://localhost:3000"
+      process.env.FRONTEND_URL || "https://advanced-todo-sable.vercel.app" || "http://localhost:3000"
     ],
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
@@ -116,7 +115,7 @@ const ensureAuthenticated = (req, res, next) => {
   if (req.isAuthenticated()) {
     if (!req.user) {
       req.logout();
-      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       return req.accepts("json")
         ? res.status(403).json({ error: "Invalid session" })
         : res.redirect(`${frontendUrl}/signIn`);
@@ -124,7 +123,7 @@ const ensureAuthenticated = (req, res, next) => {
     return next();
   }
 
-  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   return req.accepts("json")
     ? res.status(401).json({ error: "Login required" })
     : res.redirect(`${frontendUrl}/signIn`);
@@ -145,8 +144,8 @@ app.get(
   "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/signIn" }),
   (req, res) => {
-    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
-    res.redirect(`${frontendUrl}/` || "http://localhost:3000");
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    res.redirect(`${frontendUrl}/`);
   }
 );
 
@@ -164,16 +163,16 @@ app.get("/signOut", (req, res) => {
       }
 
       res.clearCookie("connect.sid");
-      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       res.redirect(`${frontendUrl}/signIn`);
     });
   });
 });
 
 app.get("/signIn", (req, res) => {
-  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   if (req.isAuthenticated()) {
-    return res.redirect(`${frontendUrl}/`);
+    return res.redirect(`${frontendUrl}/` || "http://localhost:3000");
   }
   res.redirect(`${frontendUrl}/signIn`);
 });
