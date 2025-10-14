@@ -146,7 +146,7 @@ app.get(
   passport.authenticate("google", { failureRedirect: "/signIn" }),
   (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
-    res.redirect(`${frontendUrl}/`);
+    res.redirect(`${frontendUrl}/` || "http://localhost:3000");
   }
 );
 
