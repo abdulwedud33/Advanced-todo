@@ -10,7 +10,7 @@ const SignInComp = () => {
   const [password, setPassword] = useState("");
   const { user, loading } = useAuth();
   const router = useRouter();
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
   // Redirect if already authenticated
   useEffect(() => {

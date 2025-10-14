@@ -32,7 +32,8 @@ app.use(bodyParser.json());
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL || "https://advanced-todo-sable.vercel.app" || "http://localhost:3000"
+      process.env.FRONTEND_URL || "https://advanced-todo-sable.vercel.app",
+      "http://localhost:3000"
     ],
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
@@ -172,7 +173,7 @@ app.get("/signOut", (req, res) => {
 app.get("/signIn", (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   if (req.isAuthenticated()) {
-    return res.redirect(`${frontendUrl}/` || "http://localhost:3000");
+    return res.redirect(`${frontendUrl}/`);
   }
   res.redirect(`${frontendUrl}/signIn`);
 });
