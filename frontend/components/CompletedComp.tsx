@@ -11,16 +11,23 @@ interface CompletedCompProps {
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 const markTaskAsDelete = async (id: string) => {
-  const res = await fetch(`${baseUrl}/completed/delete`, {
-    method: "DELETE",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ id }),
-  });
-  if (!res.ok) {
-    console.log("Failed to delete task");
+  try {
+    const res = await fetch(`${baseUrl}/completed/delete`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) {
+      console.log("Failed to delete task");
+      throw new Error("Failed to delete task");
+    }
+    return true;
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    return false;
   }
 };
 
@@ -28,8 +35,12 @@ const CompletedComp: React.FC<CompletedCompProps> = (props) => {
   const router = useRouter(); // Initialize the router
 
   const handleDelete = async () => {
-    await markTaskAsDelete(props._id); // Call the delete function
-    router.refresh(); // Refresh the page to reflect changes
+    const success = await markTaskAsDelete(props._id); // Call the delete function
+    if (success) {
+      router.refresh(); // Refresh the page to reflect changes
+    } else {
+      alert("Failed to delete task. Please try again.");
+    }
   };
 
   return (

@@ -30,11 +30,17 @@ export default function Header() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, content }),
       });
-      if (!res.ok) console.log("Failed to add task");
+      if (!res.ok) {
+        console.log("Failed to add task");
+        setError("Failed to add task. Please try again.");
+        return;
+      }
       setTitle("");
       setContent("");
       setError("");
       setIsModalOpen(false);
+      // Refresh the page to show the new task
+      window.location.reload();
     } catch (err: any) {
       console.error(err.message);
       setError("Failed to submit. Please try again.");

@@ -12,16 +12,23 @@ interface ToDoCompProps {
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 const markTaskAsDone = async (id: string) => {
-  const res = await fetch(`${baseUrl}/done`, {
-    method: "PATCH",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ id }),
-  });
-  if (!res.ok) {
-    console.log("Failed to mark task as done");
+  try {
+    const res = await fetch(`${baseUrl}/done`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) {
+      console.log("Failed to mark task as done");
+      throw new Error("Failed to mark task as done");
+    }
+    return true;
+  } catch (error) {
+    console.error("Error marking task as done:", error);
+    return false;
   }
 };
 
@@ -32,17 +39,24 @@ const editTask = async (
     content?: string;
   }
 ) => {
-  const res = await fetch(`${baseUrl}/edit`, {
-    method: "PATCH",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ id, ...updates }),
-  });
+  try {
+    const res = await fetch(`${baseUrl}/edit`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, ...updates }),
+    });
 
-  if (!res.ok) {
-    console.log("Failed to update task");
+    if (!res.ok) {
+      console.log("Failed to update task");
+      throw new Error("Failed to update task");
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating task:", error);
+    return false;
   }
 };
 
@@ -53,15 +67,22 @@ const ToDoComp: React.FC<ToDoCompProps> = (props) => {
   const router = useRouter(); // Initialize the router
 
   const handleUpdate = async () => {
-    await editTask(props._id, { title: updatedTitle, content: updatedContent });
-    setIsModalOpen(false);
-    router.refresh(); // Refresh the page to reflect changes
-    // Optionally, refresh the page or update the UI to reflect changes
+    const success = await editTask(props._id, { title: updatedTitle, content: updatedContent });
+    if (success) {
+      setIsModalOpen(false);
+      router.refresh(); // Refresh the page to reflect changes
+    } else {
+      alert("Failed to update task. Please try again.");
+    }
   };
 
   const handleDone = async () => {
-    await markTaskAsDone(props._id);
-    router.refresh(); // Redirect to the home page after marking as
+    const success = await markTaskAsDone(props._id);
+    if (success) {
+      router.refresh(); // Refresh the page to reflect changes
+    } else {
+      alert("Failed to mark task as done. Please try again.");
+    }
   };
 
   return (
