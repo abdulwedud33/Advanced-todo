@@ -29,15 +29,13 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.use(
-  cors({
-    origin: [
-      process.env.FRONTEND_URL, "http://localhost:3000"
-    ],
-    methods: ["GET", "POST", "PATCH", "DELETE"],
-    credentials: true,
-  })
-);
+
+app.use(cors({
+  origin: [process.env.FRONTEND_URL, "http://localhost:3000"],
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+}));
 
 app.use(express.static("public"));
 
@@ -61,20 +59,19 @@ sessionStore.on('destroy', (sessionId) => {
   console.log('Session destroyed:', sessionId);
 });
 
-app.use(
-  session({
-    store: sessionStore,
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      sameSite: "none",
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    },
-  })
-);
+app.use(session({
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET,
+  resave: true,  // Change to true
+  saveUninitialized: false,
+  proxy: true,   // Add this
+  cookie: {
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+  }
+}));
 
 app.use(passport.initialize());
 app.use(passport.session());
