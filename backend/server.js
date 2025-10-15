@@ -210,9 +210,14 @@ app.get(
         console.log("Session saved successfully");
       }
       
+      // Log the session cookie that should be sent
+      console.log("Session cookie:", req.session.cookie);
+      console.log("Response headers:", res.getHeaders());
+      
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       console.log("Redirecting to:", `${frontendUrl}/`);
-      res.redirect(`${frontendUrl}/`);
+      // Redirect to frontend with a success parameter
+      res.redirect(`${frontendUrl}/?auth=success`);
     });
   }
 );
