@@ -65,6 +65,16 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Debug middleware to check session state
+app.use((req, res, next) => {
+  console.log("Request to:", req.path);
+  console.log("Session ID:", req.sessionID);
+  console.log("Session:", req.session);
+  console.log("User:", req.user);
+  console.log("Is authenticated:", req.isAuthenticated());
+  next();
+});
+
 app.set("view engine", "ejs");
 
 // Passport Google OAuth Strategy
@@ -106,10 +116,15 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
   try {
-    console.log("Deserializing user with id:", id);
+    console.log("Deserializing user with id:", id, "type:", typeof id);
     const user = await User.findById(id);
     console.log("Deserialized user:", user);
-    done(null, user);
+    if (user) {
+      done(null, user);
+    } else {
+      console.log("User not found in database, clearing session");
+      done(null, false);
+    }
   } catch (err) {
     console.error("Deserialization error:", err);
     done(err);
