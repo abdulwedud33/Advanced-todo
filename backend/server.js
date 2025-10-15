@@ -178,6 +178,10 @@ const ensureAuthenticated = (req, res, next) => {
 // Routes
 app.get(
   "/auth/google",
+  (req, res, next) => {
+    console.log("OAuth request received, redirecting to Google");
+    next();
+  },
   passport.authenticate("google", {
     scope: ["profile", "email"],
     failureRedirect: "/signIn",
@@ -188,6 +192,10 @@ app.get(
 
 app.get(
   "/auth/google/callback",
+  (req, res, next) => {
+    console.log("OAuth callback reached, processing...");
+    next();
+  },
   passport.authenticate("google", { failureRedirect: "/signIn" }),
   (req, res) => {
     console.log("OAuth callback successful, user:", req.user);
