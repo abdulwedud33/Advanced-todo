@@ -59,11 +59,19 @@ sessionStore.on('destroy', (sessionId) => {
   console.log('Session destroyed:', sessionId);
 });
 
+sessionStore.on('error', (error) => {
+  console.error('Session store error:', error);
+});
+
+sessionStore.on('connect', () => {
+  console.log('Session store connected to MongoDB');
+});
+
 app.use(session({
   store: sessionStore,
   secret: process.env.SESSION_SECRET,
   resave: true,  // Change to true
-  saveUninitialized: false,
+  saveUninitialized: true,
   proxy: true,   // Add this
   cookie: {
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
@@ -83,6 +91,12 @@ app.use((req, res, next) => {
   console.log("Session:", req.session);
   console.log("User:", req.user);
   console.log("Is authenticated:", req.isAuthenticated());
+  
+  // Check if session was modified
+  if (req.session) {
+    console.log("Session modified:", req.session.cookie.originalMaxAge);
+  }
+  
   next();
 });
 
