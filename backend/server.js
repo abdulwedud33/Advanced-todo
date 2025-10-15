@@ -44,12 +44,27 @@ app.use(express.static("public"));
 
 // Session configuration with MongoDB store
 app.set("trust proxy", 1);
+const sessionStore = MongoStore.create({
+  mongoUrl: mongoUri,
+  touchAfter: 24 * 3600, // lazy session update
+});
+
+// Add session store event listeners for debugging
+sessionStore.on('create', (sessionId) => {
+  console.log('Session created:', sessionId);
+});
+
+sessionStore.on('update', (sessionId) => {
+  console.log('Session updated:', sessionId);
+});
+
+sessionStore.on('destroy', (sessionId) => {
+  console.log('Session destroyed:', sessionId);
+});
+
 app.use(
   session({
-    store: MongoStore.create({
-      mongoUrl: mongoUri,
-      touchAfter: 24 * 3600, // lazy session update
-    }),
+    store: sessionStore,
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -168,9 +183,18 @@ app.get(
     console.log("Session:", req.session);
     console.log("Is authenticated:", req.isAuthenticated());
     
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    console.log("Redirecting to:", `${frontendUrl}/`);
-    res.redirect(`${frontendUrl}/`);
+    // Manually save the session to ensure it's persisted
+    req.session.save((err) => {
+      if (err) {
+        console.error("Session save error:", err);
+      } else {
+        console.log("Session saved successfully");
+      }
+      
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      console.log("Redirecting to:", `${frontendUrl}/`);
+      res.redirect(`${frontendUrl}/`);
+    });
   }
 );
 
