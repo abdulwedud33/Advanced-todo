@@ -32,8 +32,7 @@ app.use(bodyParser.json());
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL || "https://advanced-todo-sable.vercel.app",
-      "http://localhost:3000"
+      process.env.FRONTEND_URL, "http://localhost:3000"
     ],
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
@@ -91,6 +90,7 @@ app.use((req, res, next) => {
 });
 
 app.set("view engine", "ejs");
+app.set("trust proxy", 1);
 
 // Passport Google OAuth Strategy
 passport.use(
