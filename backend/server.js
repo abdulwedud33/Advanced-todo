@@ -100,14 +100,18 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
+  console.log("Serializing user:", user);
   done(null, user._id);
 });
 
 passport.deserializeUser(async (id, done) => {
   try {
+    console.log("Deserializing user with id:", id);
     const user = await User.findById(id);
+    console.log("Deserialized user:", user);
     done(null, user);
   } catch (err) {
+    console.error("Deserialization error:", err);
     done(err);
   }
 });
@@ -201,8 +205,24 @@ app.get("/", ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Test session endpoint
+app.get("/test-session", (req, res) => {
+  console.log("Test session - Session ID:", req.sessionID);
+  console.log("Test session - Session:", req.session);
+  console.log("Test session - User:", req.user);
+  console.log("Test session - Is authenticated:", req.isAuthenticated());
+  
+  res.json({
+    sessionId: req.sessionID,
+    hasSession: !!req.session,
+    isAuthenticated: req.isAuthenticated(),
+    user: req.user || null
+  });
+});
+
 // Check authentication status
 app.get("/auth/status", (req, res) => {
+  console.log("Auth status check - Session ID:", req.sessionID);
   console.log("Auth status check - Session:", req.session);
   console.log("Auth status check - User:", req.user);
   console.log("Auth status check - Is authenticated:", req.isAuthenticated());
