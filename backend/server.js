@@ -54,7 +54,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      sameSite: "none",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
@@ -145,7 +145,12 @@ app.get(
   "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/signIn" }),
   (req, res) => {
+    console.log("OAuth callback successful, user:", req.user);
+    console.log("Session:", req.session);
+    console.log("Is authenticated:", req.isAuthenticated());
+    
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    console.log("Redirecting to:", `${frontendUrl}/`);
     res.redirect(`${frontendUrl}/`);
   }
 );
@@ -198,7 +203,12 @@ app.get("/", ensureAuthenticated, async (req, res) => {
 
 // Check authentication status
 app.get("/auth/status", (req, res) => {
+  console.log("Auth status check - Session:", req.session);
+  console.log("Auth status check - User:", req.user);
+  console.log("Auth status check - Is authenticated:", req.isAuthenticated());
+  
   if (req.isAuthenticated() && req.user) {
+    console.log("User is authenticated, returning user data");
     res.json({ 
       authenticated: true, 
       user: {
@@ -208,6 +218,7 @@ app.get("/auth/status", (req, res) => {
       }
     });
   } else {
+    console.log("User is not authenticated");
     res.json({ authenticated: false });
   }
 });

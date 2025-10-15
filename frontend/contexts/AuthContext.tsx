@@ -40,6 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuth = async () => {
     try {
       setLoading(true);
+      console.log('Checking auth status...');
       const response = await fetch(`${baseUrl}/auth/status`, {
         method: 'GET',
         credentials: 'include',
@@ -48,14 +49,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
+      console.log('Auth status response:', response.status, response.ok);
+      
       if (response.ok) {
         const authData = await response.json();
+        console.log('Auth data received:', authData);
         if (authData.authenticated && authData.user) {
+          console.log('Setting user:', authData.user);
           setUser(authData.user);
         } else {
+          console.log('User not authenticated');
           setUser(null);
         }
       } else {
+        console.log('Auth check failed with status:', response.status);
         setUser(null);
       }
     } catch (error) {
