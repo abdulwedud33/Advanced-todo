@@ -94,27 +94,40 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configure CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://advanced-todo-sable.vercel.app',
+  'https://advanced-todo-lz04.onrender.com',
+  'https://advanced-todo-lz04.onrender.com/'
+];
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'https://advanced-todo-sable.vercel.app',
-      'https://advanced-todo-lz04.onrender.com'
-    ];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
     }
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600,
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Allow-Credentials',
+    'Cache-Control',
+    'Pragma'
+  ],
+  exposedHeaders: ['set-cookie', 'access-control-allow-credentials', 'Content-Range', 'X-Content-Range'],
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
   preflightContinue: false,
-  optionsSuccessStatus: 204
+  maxAge: 600
 };
 
 // Apply CORS middleware
