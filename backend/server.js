@@ -103,8 +103,10 @@ const sessionConfig = {
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: process.env.NODE_ENV === 'production' ? 'advanced-todo-sable.vercel.app' : 'localhost',
-    path: '/'
+    path: '/',
+    // Removed explicit domain to let the browser handle it
+    // This is often better for Vercel deployments
+    // as they can be served from multiple domains/subdomains
   }
 };
 
