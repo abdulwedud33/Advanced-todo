@@ -14,7 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (user: User) => void;
   logout: () => void;
-  checkAuth: () => Promise<void>;
+  checkAuth: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +37,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const checkAuth = async () => {
+  // Check for OAuth callback on mount
+  useEffect(() => {
+    const checkOAuthCallback = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authStatus = urlParams.get('auth');
+      
+      if (authStatus === 'success') {
+        // Clear the URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Force a refresh of auth state
+        checkAuth().then(() => {
+          // Redirect to home after successful auth
+          window.location.href = '/';
+        });
+      } else {
+        // Regular auth check
+        checkAuth();
+      }
+    };
+
+    checkOAuthCallback();
+  }, []);
+
+  const checkAuth = async (): Promise<boolean> => {
     try {
       setLoading(true);
       console.log('Checking auth status...');
@@ -62,25 +85,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (data.isAuthenticated && data.user) {
           console.log('User authenticated:', data.user);
-          setUser({
+          const userData = {
             _id: data.user._id,
             name: data.user.name,
             email: data.user.email
-          });
+          };
+          setUser(userData);
+          return true;
         } else {
           console.log('User not authenticated');
           setUser(null);
+          return false;
         }
       } else {
         console.log('Auth check failed with status:', response.status);
         setUser(null);
+        return false;
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
+      return false;
     } finally {
       setLoading(false);
     }
+    return false;
   };
 
   const login = (userData: User) => {

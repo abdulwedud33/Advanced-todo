@@ -257,28 +257,53 @@ app.get(
     console.log("OAuth callback reached, processing...");
     next();
   },
-  passport.authenticate("google", { failureRedirect: "/signIn" }),
+  passport.authenticate("google", { 
+    failureRedirect: "/signIn",
+    session: true
+  }),
   (req, res) => {
     console.log("OAuth callback successful, user:", req.user);
     console.log("Session:", req.session);
     console.log("Is authenticated:", req.isAuthenticated());
     
-    // Manually save the session to ensure it's persisted
-    req.session.save((err) => {
+    if (!req.user) {
+      console.error("No user in session after successful auth");
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      return res.redirect(`${frontendUrl}/signIn?error=auth_failed`);
+    }
+    
+    // Regenerate session to prevent session fixation
+    req.session.regenerate((err) => {
       if (err) {
-        console.error("Session save error:", err);
-      } else {
-        console.log("Session saved successfully");
+        console.error("Session regeneration error:", err);
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        return res.redirect(`${frontendUrl}/signIn?error=session_error`);
       }
       
-      // Log the session cookie that should be sent
-      console.log("Session cookie:", req.session.cookie);
-      console.log("Response headers:", res.getHeaders());
-      
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      console.log("Redirecting to:", `${frontendUrl}/`);
-      // Redirect to frontend with a success parameter
-      res.redirect(`${frontendUrl}/?auth=success`);
+      // Manually log in the user in the new session
+      req.logIn(req.user, (err) => {
+        if (err) {
+          console.error("Login error:", err);
+          const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+          return res.redirect(`${frontendUrl}/signIn?error=login_failed`);
+        }
+        
+        console.log("User logged in successfully, redirecting...");
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        
+        // Set secure cookie attributes
+        res.cookie('connect.sid', req.sessionID, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined,
+          maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
+        
+        // Redirect to frontend with success parameter
+        res.redirect(`${frontendUrl}/?auth=success`);
+      });
     });
   }
 );
