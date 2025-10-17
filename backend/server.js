@@ -90,25 +90,29 @@ sessionStore.on('connect', () => {
 });
 
 // Session configuration
+const isProduction = process.env.NODE_ENV === 'production';
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   store: sessionStore,
-  resave: true,  // Changed to true to ensure session is saved even if not modified
-  saveUninitialized: true,  // Changed to true to save new sessions
-  proxy: true,
+  resave: true,
+  saveUninitialized: false, // Changed to false to prevent saving uninitialized sessions
+  proxy: isProduction, // Trust the reverse proxy in production
   name: 'todo-session',
   rolling: true,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isProduction, // Must be true for SameSite=None
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
-    // Removed explicit domain to let the browser handle it
-    // This is often better for Vercel deployments
-    // as they can be served from multiple domains/subdomains
+    domain: isProduction ? '.vercel.app' : undefined // Use root domain for all subdomains
   }
 };
+
+// Set trust proxy for production
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
 
 app.use(session(sessionConfig));
 
