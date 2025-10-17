@@ -29,19 +29,35 @@ export const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
-  const headers = {
-    ...getAuthHeaders(),
-    ...(options.headers || {})
-  };
   
-  console.log('Making request to:', url); // Debug log
-  console.log('Request headers:', headers); // Debug log
+  // Get the token from localStorage
+  let token = '';
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('token') || '';
+  }
+  
+  // Prepare headers
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  });
+  
+  // Add Authorization header if token exists
+  if (token) {
+    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    headers.set('Authorization', authToken);
+  }
+  
+  console.log('Making request to:', url);
+  console.log('Using token:', token ? 'Yes' : 'No');
+  console.log('Request headers:', Object.fromEntries(headers.entries()));
 
   try {
     const response = await fetch(url, {
       ...options,
       headers,
       credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {

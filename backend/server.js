@@ -93,6 +93,41 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configure CORS
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://advanced-todo-sable.vercel.app',
+      'https://advanced-todo-lz04.onrender.com'
+    ];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Body parser middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Initialize Passport
+app.use(passport.initialize());
+
 // Connect to MongoDB using your existing environment variables
 const mongoUri = process.env.MONGODB_URI;
 mongoose.connect(mongoUri)
@@ -107,30 +142,6 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// CORS configuration
-const corsOptions = {
-  origin: [
-    'https://advanced-todo-sable.vercel.app',
-    'http://localhost:3000',
-    'https://advanced-todo-lz04.onrender.com'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-    'Access-Control-Allow-Credentials',
-    'Cache-Control',
-    'Pragma',
-    'X-Requested-With'
-  ],
-  exposedHeaders: ['set-cookie', 'access-control-allow-credentials'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
 
 app.use(cors(corsOptions));
 
