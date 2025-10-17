@@ -44,7 +44,10 @@ const corsOptions = {
     'X-Requested-With',
     'Accept',
     'Origin',
-    'Access-Control-Allow-Credentials'
+    'Access-Control-Allow-Credentials',
+    'Cache-Control',
+    'Pragma',
+    'X-Requested-With'
   ],
   exposedHeaders: ['set-cookie', 'access-control-allow-credentials'],
   preflightContinue: false,
