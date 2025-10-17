@@ -9,7 +9,7 @@ const SignInComp = () => {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { user, loading, checkAuth } = useAuth();
+  const { user, loading, checkAuth, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -141,6 +141,12 @@ const SignInComp = () => {
             </button>
           </form>
         </div>
+        <button
+          onClick={logout}
+          className="text-gray-400 hover:text-black"
+        >
+          SignOut
+        </button>
       </div>
     );
   };

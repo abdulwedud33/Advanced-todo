@@ -82,7 +82,6 @@ export default function Header() {
           </Link>
           {user ? (
             <button
-              onClick={logout}
               className="text-gray-400 hover:text-black"
             >
               SignOut
