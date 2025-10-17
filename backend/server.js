@@ -18,7 +18,7 @@ const generateToken = (user) => {
       name: user.name,
     },
     process.env.JWT_SECRET || 'your_jwt_secret',
-    { expiresIn: '24h' }
+    { expiresIn: '7d' }
   );
 };
 
@@ -321,16 +321,28 @@ app.get("/test-session", (req, res) => {
 });
 
 // Auth status endpoint (JWT version)
-app.get("/auth/status", authenticateJWT, (req, res) => {
-  // If we get here, the JWT is valid
-  res.json({ 
-    isAuthenticated: true,
-    user: {
-      id: req.user.id,
-      email: req.user.email,
-      name: req.user.name
+app.get("/auth/status", authenticateJWT, async (req, res) => {
+  try {
+    // If we get here, the JWT is valid
+    // Fetch the latest user data from the database
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  });
+    
+    res.json({ 
+      isAuthenticated: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('Error in /auth/status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Logout endpoint

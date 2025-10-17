@@ -2,11 +2,22 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
 
 // Helper function to get auth headers
 export const getAuthHeaders = () => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  return {
+  // In Next.js, we need to check if we're in the browser environment
+  if (typeof window === 'undefined') {
+    return { 'Content-Type': 'application/json' };
+  }
+  
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
   };
+  
+  if (token) {
+    // Ensure the token doesn't already have 'Bearer ' prefix
+    headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 // Generic API request function
@@ -84,9 +95,28 @@ export const authApi = {
     }
   },
   
-  getCurrentUser: () => api.get<{
-    id: string;
-    email: string;
-    name: string;
-  }>('/auth/status'),
+  getCurrentUser: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/status`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch user data');
+      }
+
+      const data = await response.json();
+      return {
+        id: data.user?._id || data.user?.id || '',
+        email: data.user?.email || '',
+        name: data.user?.name || '',
+      };
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      throw error;
+    }
+  },
 };
