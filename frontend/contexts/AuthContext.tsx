@@ -42,22 +42,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        setLoading(true);
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         
         if (token) {
+          console.log('Token received from OAuth callback');
           // Store the token from OAuth callback
           authApi.login(token);
           // Clear the URL parameters
           window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        
-        // Verify token if it exists
-        if (localStorage.getItem('token')) {
+          // Verify the new token
           await verifyToken();
+        } else if (localStorage.getItem('token')) {
+          console.log('Found existing token, verifying...');
+          // Verify existing token
+          await verifyToken();
+        } else {
+          console.log('No token found');
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+        // Clear invalid token
+        authApi.logout();
         setUser(null);
       } finally {
         setLoading(false);
@@ -69,15 +76,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyToken = async () => {
     try {
+      console.log('Verifying token...');
       const userData = await authApi.getCurrentUser();
-      setUser({
-        _id: userData.id,
-        name: userData.name,
-        email: userData.email
-      });
-      return true;
+      
+      if (userData && userData.id) {
+        console.log('Token verified, user:', userData.email);
+        setUser({
+          _id: userData.id,
+          name: userData.name,
+          email: userData.email
+        });
+        return true;
+      } else {
+        console.log('Invalid user data received:', userData);
+        throw new Error('Invalid user data');
+      }
     } catch (error) {
       console.error('Error verifying token:', error);
+      // Clear invalid token
+      authApi.logout();
       setUser(null);
       return false;
     }

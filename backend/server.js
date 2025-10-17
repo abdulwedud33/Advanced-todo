@@ -24,26 +24,68 @@ const generateToken = (user) => {
 
 const verifyToken = (token) => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    if (!token) {
+      console.log('No token provided');
+      return null;
+    }
+    
+    // Remove 'Bearer ' prefix if present
+    const tokenValue = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
+    
+    // Verify the token
+    const decoded = jwt.verify(tokenValue, process.env.JWT_SECRET || 'your_jwt_secret');
+    
+    // Add additional verification if needed
+    if (!decoded || !decoded.id) {
+      console.log('Invalid token payload:', decoded);
+      return null;
+    }
+    
+    return decoded;
   } catch (err) {
+    console.error('Token verification error:', err.message);
     return null;
   }
 };
 
 const authenticateJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  
-  if (authHeader) {
-    const token = authHeader.split(' ')[1];
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      console.log('No authorization header found');
+      return res.status(401).json({ error: 'No authorization token provided' });
+    }
+    
+    // Log the received auth header (without the token for security)
+    console.log('Auth header received, length:', authHeader.length);
+    
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    
+    if (!token) {
+      console.log('No token found in authorization header');
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    console.log('Verifying token...');
     const user = verifyToken(token);
     
-    if (user) {
-      req.user = user;
-      return next();
+    if (!user) {
+      console.log('Token verification failed');
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
+    
+    console.log('User authenticated:', { id: user.id, email: user.email });
+    req.user = user;
+    return next();
+    
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(500).json({ 
+      error: 'Authentication failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
-  
-  res.status(401).json({ error: 'Unauthorized' });
 };
 
 dotenv.config();
