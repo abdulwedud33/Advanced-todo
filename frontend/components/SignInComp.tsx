@@ -3,31 +3,41 @@
 import { useState, useEffect } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const SignInComp = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { user, loading, checkAuth } = useAuth();
   const router = useRouter();
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
+  const searchParams = useSearchParams();
 
   // Handle OAuth callback and redirects
   useEffect(() => {
-    // Check for OAuth success
-    const urlParams = new URLSearchParams(window.location.search);
-    const authStatus = urlParams.get('auth');
-    
-    if (authStatus === 'success') {
-      // Force a refresh of auth state
-      checkAuth().then(() => {
-        router.push('/');
-      });
-    } else if (!loading && user) {
-      // Regular redirect if already authenticated
-      router.push('/');
-    }
-  }, [user, loading, router]);
+    const checkAuthStatus = async () => {
+      try {
+        const token = searchParams.get('token');
+        if (token) {
+          // We have a token from OAuth callback
+          const isAuthenticated = await checkAuth();
+          if (isAuthenticated) {
+            router.push('/');
+          } else {
+            setError('Failed to authenticate. Please try again.');
+          }
+        } else if (!loading && user) {
+          // Already authenticated, redirect to home
+          router.push('/');
+        }
+      } catch (err) {
+        console.error('Auth error:', err);
+        setError('An error occurred during authentication');
+      }
+    };
+
+    checkAuthStatus();
+  }, [user, loading, router, searchParams, checkAuth]);
 
   if (loading) {
     return (
@@ -41,27 +51,23 @@ const SignInComp = () => {
     return null; // Will redirect
   }
 
-  return (
-    <>
-      <div className="flex flex-col gap-6 justify-center items-center px-4 mt-12">
-        <div className="w-full max-w-sm bg-white shadow-lg rounded-xl p-6">
-          <h2 className="text-2xl font-bold text-center mb-6">SignIn</h2>
+  const handleGoogleSignIn = () => {
+    window.location.href = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/google`;
+  };
 
-          <button
-            onClick={async (e) => {
-              e.preventDefault();
-              try {
-                // Store the current URL to redirect back after login
-                const redirectUrl = window.location.origin;
-                localStorage.setItem('redirectAfterLogin', redirectUrl);
-                
-                // Redirect to backend OAuth endpoint
-                window.location.href = `${baseUrl}/auth/google`;
-              } catch (error) {
-                console.error('Error during Google sign-in:', error);
-                // Optionally show error to user
-              }
-            }}
+  return (
+    <div className="flex flex-col gap-6 justify-center items-center px-4 mt-12">
+      <div className="w-full max-w-sm bg-white shadow-lg rounded-xl p-6">
+        <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
+
+        <button
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 hover:cursor-pointer px-2 py-2 mb-4 bg-white border border-gray-300 rounded-xl shadow hover:shadow-md transition text-lg"
           >
             <FcGoogle size={24} />
@@ -74,7 +80,41 @@ const SignInComp = () => {
             <hr className="flex-grow border-t border-gray-300" />
           </div>
 
-          <form className="flex flex-col gap-4">
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!email || !password) {
+              setError('Please fill in all fields');
+              return;
+            }
+            try {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+                credentials: 'include'
+              });
+              
+              const data = await response.json();
+              
+              if (!response.ok) {
+                throw new Error(data.message || 'Failed to sign in');
+              }
+              
+              // Check if authentication was successful
+              const isAuthenticated = await checkAuth();
+              if (isAuthenticated) {
+                router.push('/');
+              } else {
+                setError('Failed to authenticate. Please try again.');
+              }
+            } catch (err) {
+              console.error('Sign in error:', err);
+              const errorMessage = err instanceof Error ? err.message : 'An error occurred during sign in';
+              setError(errorMessage);
+            }
+          }} className="flex flex-col gap-4">
             <input
               type="email"
               placeholder="Email"
@@ -98,8 +138,7 @@ const SignInComp = () => {
           </form>
         </div>
       </div>
-    </>
-  );
-};
+    );
+  };
 
 export default SignInComp;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { api, authApi } from '@/utils/api';
 
 interface User {
   _id: string;
@@ -37,79 +38,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for OAuth callback on mount
+  // Check for OAuth callback or existing token on mount
   useEffect(() => {
-    const checkOAuthCallback = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const authStatus = urlParams.get('auth');
-      
-      if (authStatus === 'success') {
-        // Clear the URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-        // Force a refresh of auth state
-        checkAuth().then(() => {
-          // Redirect to home after successful auth
-          window.location.href = '/';
-        });
-      } else {
-        // Regular auth check
-        checkAuth();
+    const initializeAuth = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        if (token) {
+          // Store the token from OAuth callback
+          authApi.login(token);
+          // Clear the URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
+        // Verify token if it exists
+        if (localStorage.getItem('token')) {
+          await verifyToken();
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
     };
 
-    checkOAuthCallback();
+    initializeAuth();
   }, []);
 
-  const checkAuth = async (): Promise<boolean> => {
+  const verifyToken = async () => {
     try {
-      setLoading(true);
-      console.log('Checking auth status...');
-      const response = await fetch(`${baseUrl}/auth/status`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        cache: 'no-store'
+      const userData = await authApi.getCurrentUser();
+      setUser({
+        _id: userData.id,
+        name: userData.name,
+        email: userData.email
       });
-
-      console.log('Auth status response:', response.status, response.ok);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Auth data received:', data);
-        
-        if (data.isAuthenticated && data.user) {
-          console.log('User authenticated:', data.user);
-          const userData = {
-            _id: data.user._id,
-            name: data.user.name,
-            email: data.user.email
-          };
-          setUser(userData);
-          return true;
-        } else {
-          console.log('User not authenticated');
-          setUser(null);
-          return false;
-        }
-      } else {
-        console.log('Auth check failed with status:', response.status);
-        setUser(null);
-        return false;
-      }
+      return true;
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('Error verifying token:', error);
       setUser(null);
       return false;
-    } finally {
-      setLoading(false);
     }
-    return false;
   };
 
   const login = (userData: User) => {
@@ -118,43 +89,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Call backend logout first
-      await fetch(`${baseUrl}/signOut`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        cache: 'no-store',
-      });
-      
-      // Clear local state after successful logout
-      setUser(null);
-      
-      // Redirect to sign in page
-      window.location.href = '/signIn';
+      await authApi.logout();
     } catch (error) {
-      console.error('Logout failed:', error);
-      // Still redirect even if logout fails
-      window.location.href = '/signIn';
+      console.error('Error during logout:', error);
+    } finally {
+      setUser(null);
+      window.location.href = '/';
     }
   };
 
   useEffect(() => {
-    checkAuth();
+    verifyToken();
   }, []);
+
+  const isAuthenticated = !!user;
 
   const value: AuthContextType = {
     user,
     loading,
-    isAuthenticated: !!user,
+    isAuthenticated,
     login,
     logout,
-    checkAuth,
+    checkAuth: verifyToken,
   };
 
   return (

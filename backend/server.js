@@ -3,12 +3,48 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import passport from "passport";
-import session from "express-session";
-import MongoStore from "connect-mongo";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import User from "./models/User.js";
 import Task from "./models/Task.js";
+
+// JWT utility functions
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+    },
+    process.env.JWT_SECRET || 'your_jwt_secret',
+    { expiresIn: '24h' }
+  );
+};
+
+const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+  } catch (err) {
+    return null;
+  }
+};
+
+const authenticateJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    const user = verifyToken(token);
+    
+    if (user) {
+      req.user = user;
+      return next();
+    }
+  }
+  
+  res.status(401).json({ error: 'Unauthorized' });
+};
 
 dotenv.config();
 
@@ -61,96 +97,31 @@ app.options('*', cors(corsOptions));
 
 app.use(express.static("public"));
 
-// Session configuration with MongoDB store
-app.set("trust proxy", 1);
-const sessionStore = MongoStore.create({
-  mongoUrl: mongoUri,
-  touchAfter: 24 * 3600, // lazy session update
-});
-
-// Add session store event listeners for debugging
-sessionStore.on('create', (sessionId) => {
-  console.log('Session created:', sessionId);
-});
-
-sessionStore.on('update', (sessionId) => {
-  console.log('Session updated:', sessionId);
-});
-
-sessionStore.on('destroy', (sessionId) => {
-  console.log('Session destroyed:', sessionId);
-});
-
-sessionStore.on('error', (error) => {
-  console.error('Session store error:', error);
-});
-
-sessionStore.on('connect', () => {
-  console.log('Session store connected to MongoDB');
-});
-
-// Session configuration
-const isProduction = process.env.NODE_ENV === 'production';
-const sessionConfig = {
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  store: sessionStore,
-  resave: true,
-  saveUninitialized: false, // Changed to false to prevent saving uninitialized sessions
-  proxy: isProduction, // Trust the reverse proxy in production
-  name: 'todo-session',
-  rolling: true,
-  cookie: {
-    httpOnly: true,
-    secure: isProduction, // Must be true for SameSite=None
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    path: '/',
-    domain: isProduction ? '.vercel.app' : undefined // Use root domain for all subdomains
-  }
-};
-
-// Set trust proxy for production
-if (isProduction) {
-  app.set('trust proxy', 1);
-}
-
-app.use(session(sessionConfig));
-
+// Initialize Passport without session support
 app.use(passport.initialize());
-app.use(passport.session());
 
-// Enhanced debug middleware
+// Simple user serialization/deserialization for Passport
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
+
+// Simple request logging middleware
 app.use((req, res, next) => {
-  console.log("\n--- New Request ---");
-  console.log("Method:", req.method);
-  console.log("Path:", req.path);
-  console.log("Session ID:", req.sessionID);
-  console.log("Session:", req.session);
-  console.log("User:", req.user);
-  console.log("Authenticated:", req.isAuthenticated());
-  console.log("Headers:", {
-    cookie: req.headers.cookie,
+  console.log(`\n--- ${new Date().toISOString()} ---`);
+  console.log(`${req.method} ${req.path}`);
+  console.log('Headers:', {
     origin: req.headers.origin,
-    referer: req.headers.referer,
     'user-agent': req.headers['user-agent']
   });
-  
-  if (req.session) {
-    console.log("Session cookie:", {
-      originalMaxAge: req.session.cookie.originalMaxAge,
-      expires: req.session.cookie.expires,
-      domain: req.session.cookie.domain,
-      secure: req.session.cookie.secure,
-      sameSite: req.session.cookie.sameSite
-    });
-  }
-  
-  // Add CORS headers to every response
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,UPDATE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
-  
   next();
 });
 
@@ -164,15 +135,14 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3001/auth/google/callback",
+      passReqToCallback: true
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (req, accessToken, refreshToken, profile, done) => {
       try {
         // Check if user exists
         let user = await User.findOne({ googleId: profile.id });
 
-        if (user) {
-          return done(null, user);
-        } else {
+        if (!user) {
           // Create new user
           user = new User({
             googleId: profile.id,
@@ -180,9 +150,11 @@ passport.use(
             name: profile.displayName || null,
           });
           await user.save();
-          return done(null, user);
         }
+        
+        return done(null, user);
       } catch (err) {
+        console.error('Error in Google OAuth callback:', err);
         return done(err);
       }
     }
@@ -229,7 +201,7 @@ const ensureAuthenticated = (req, res, next) => {
     : res.redirect(`${frontendUrl}/signIn`);
 };
 
-// Routes
+// Auth Routes
 app.get(
   "/auth/google",
   (req, res, next) => {
@@ -238,7 +210,6 @@ app.get(
   },
   passport.authenticate("google", {
     scope: ["profile", "email"],
-    failureRedirect: "/signIn",
     accessType: "offline",
     prompt: "select_account"
   })
@@ -250,39 +221,29 @@ app.get(
     console.log("OAuth callback reached, processing...");
     next();
   },
-  passport.authenticate("google", { 
-    failureRedirect: "/signIn",
-    session: true
-  }),
+  passport.authenticate("google", { session: false, failureRedirect: "/login?error=auth_failed" }),
   (req, res) => {
-    console.log("OAuth callback successful, user:", req.user);
-    console.log("Session:", req.session);
-    console.log("Is authenticated:", req.isAuthenticated());
-    
-    if (!req.user) {
-      console.error("No user in session after successful auth");
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      return res.redirect(`${frontendUrl}/signIn?error=auth_failed`);
-    }
-    
-    // Regenerate session to prevent session fixation
-    req.session.regenerate((err) => {
-      if (err) {
-        console.error("Session regeneration error:", err);
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-        return res.redirect(`${frontendUrl}/signIn?error=session_error`);
-      }
+    try {
+      const user = req.user;
+      console.log("OAuth successful for user:", user.email);
       
-      // Manually log in the user in the new session
-      req.logIn(req.user, (err) => {
-        if (err) {
-          console.error("Login error:", err);
-          const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-          return res.redirect(`${frontendUrl}/signIn?error=login_failed`);
-        }
-        
-        console.log("User logged in successfully, redirecting...");
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      // Generate JWT token
+      const token = generateToken(user);
+      
+      // Get frontend URL from environment or use default
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const redirectUrl = new URL(`${frontendUrl}/auth/callback`);
+      
+      // Add token to URL
+      redirectUrl.searchParams.set('token', token);
+      
+      // Redirect to frontend with token
+      console.log("Redirecting to:", redirectUrl.toString());
+      res.redirect(redirectUrl.toString());
+    } catch (error) {
+      console.error("Error in OAuth callback:", error);
+      res.redirect(`/login?error=server_error`);
+    }
         
         // Set secure cookie attributes
         res.cookie('connect.sid', req.sessionID, {
@@ -297,9 +258,7 @@ app.get(
         // Redirect to frontend with success parameter
         res.redirect(`${frontendUrl}/?auth=success`);
       });
-    });
-  }
-);
+ 
 
 app.get("/signOut", (req, res) => {
   req.logout((err) => {
@@ -362,30 +321,32 @@ app.get("/test-session", (req, res) => {
   });
 });
 
-// Check authentication status
-app.get("/auth/status", (req, res) => {
-  console.log("Auth status check - Session ID:", req.sessionID);
-  console.log("Auth status check - Session:", req.session);
-  console.log("Auth status check - User:", req.user);
-  console.log("Auth status check - Is authenticated:", req.isAuthenticated());
-  
-  if (req.isAuthenticated()) {
-    return res.status(200).json({
-      isAuthenticated: true,
-      user: {
-        _id: req.user._id,
-        name: req.user.name,
-        email: req.user.email
-      }
-    });
-  } else {
-    console.log("User is not authenticated");
-    res.json({ authenticated: false });
-  }
+// Auth status endpoint (JWT version)
+app.get("/auth/status", authenticateJWT, (req, res) => {
+  // If we get here, the JWT is valid
+  res.json({ 
+    isAuthenticated: true,
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name
+    }
+  });
+});
+
+// Logout endpoint
+app.post("/auth/logout", (req, res) => {
+  // Since we're using JWT, logout is handled client-side by removing the token
+  res.json({ success: true, message: "Logged out successfully" });
+});
+
+// Token refresh endpoint (optional)
+app.post("/auth/refresh", (req, res) => {
+  const refreshToken = req.body.refreshToken;
 });
 
 // Get user information
-app.get("/user", ensureAuthenticated, async (req, res) => {
+app.get("/user", authenticateJWT, async (req, res) => {
   console.log("Session:", req.session);
   console.log("User:", req.user);
   console.log("isAuthenticated:", req.isAuthenticated?.());
@@ -399,7 +360,7 @@ app.get("/user", ensureAuthenticated, async (req, res) => {
 });
 
 // Add a new task
-app.post("/add", ensureAuthenticated, async (req, res) => {
+app.post("/add", authenticateJWT, async (req, res) => {
   const { title, content } = req.body;
   if (!title || !content) {
     return res.status(400).json({ error: "Title and content are required" });
@@ -408,7 +369,7 @@ app.post("/add", ensureAuthenticated, async (req, res) => {
     const task = new Task({
       title,
       content,
-      userId: req.user._id,
+      userId: req.user.id, // Using req.user.id from JWT
     });
     await task.save();
     res.status(201).json({ message: "Task added successfully", task });
@@ -419,11 +380,11 @@ app.post("/add", ensureAuthenticated, async (req, res) => {
 });
 
 // Get completed tasks
-app.get("/completed", ensureAuthenticated, async (req, res) => {
+app.get("/completed", authenticateJWT, async (req, res) => {
   try {
     const tasks = await Task.find({ 
       isCompleted: true, 
-      userId: req.user._id 
+      userId: req.user.id // Using req.user.id from JWT
     }).sort({ updatedAt: -1 });
     res.json(tasks);
   } catch (error) {
@@ -433,13 +394,13 @@ app.get("/completed", ensureAuthenticated, async (req, res) => {
 });
 
 // Mark task as completed
-app.patch("/done", ensureAuthenticated, async (req, res) => {
+app.patch("/done", authenticateJWT, async (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json({ error: "ID is required" });
 
   try {
     const task = await Task.findOneAndUpdate(
-      { _id: id, userId: req.user._id },
+      { _id: id, userId: req.user.id },
       { isCompleted: true },
       { new: true }
     );
@@ -455,14 +416,14 @@ app.patch("/done", ensureAuthenticated, async (req, res) => {
 });
 
 // Delete completed task
-app.delete("/completed/delete", ensureAuthenticated, async (req, res) => {
+app.delete("/completed/delete", authenticateJWT, async (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json({ error: "ID is required" });
 
   try {
     const task = await Task.findOneAndDelete({ 
       _id: id, 
-      userId: req.user._id 
+      userId: req.user.id 
     });
     
     if (!task) {
@@ -476,14 +437,14 @@ app.delete("/completed/delete", ensureAuthenticated, async (req, res) => {
 });
 
 // Edit task
-app.patch("/edit", ensureAuthenticated, async (req, res) => {
+app.patch("/edit", authenticateJWT, async (req, res) => {
   const { id, title, content } = req.body;
   if (!id || !title || !content) {
     return res.status(400).json({ error: "ID, title, and content are required" });
   }
   try {
     const task = await Task.findOneAndUpdate(
-      { _id: id, userId: req.user._id },
+      { _id: id, userId: req.user.id },
       { title, content },
       { new: true }
     );
