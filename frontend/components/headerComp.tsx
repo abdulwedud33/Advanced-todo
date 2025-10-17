@@ -24,10 +24,25 @@ export default function Header() {
     }
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
+      // Get the JWT token from cookies
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token='))
+        ?.split('=')[1];
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${baseUrl}/add`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ title, content }),
       });
       if (!res.ok) {
