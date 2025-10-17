@@ -1,20 +1,18 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
 
 // Helper function to get auth headers
-export const getAuthHeaders = () => {
-  // In Next.js, we need to check if we're in the browser environment
-  if (typeof window === 'undefined') {
-    return { 'Content-Type': 'application/json' };
-  }
-  
-  const token = localStorage.getItem('token');
+export const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  
-  if (token) {
-    // Ensure the token doesn't already have 'Bearer ' prefix
-    headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+  // Only access localStorage in browser environment
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Ensure token has 'Bearer ' prefix
+      headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
   }
   
   return headers;
@@ -84,14 +82,31 @@ export const api = {
 // Auth specific API calls
 export const authApi = {
   login: (token: string) => {
-    localStorage.setItem('token', token);
+    // Store token with 'Bearer ' prefix if not already present
+    const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', formattedToken);
+    }
+    return formattedToken;
   },
   
   logout: async () => {
     try {
-      await api.post('/auth/logout', {});
+      // Only make logout request if we have a token
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (token) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+      }
     }
   },
   
@@ -104,6 +119,10 @@ export const authApi = {
       });
 
       if (!response.ok) {
+        // If unauthorized, clear the token
+        if (response.status === 401 && typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to fetch user data');
       }
