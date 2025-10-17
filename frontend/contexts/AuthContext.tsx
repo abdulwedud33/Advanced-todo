@@ -46,7 +46,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'X-Requested-With': 'XMLHttpRequest'
         },
+        cache: 'no-store'
       });
 
       console.log('Auth status response:', response.status, response.ok);
@@ -84,14 +89,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Clear local state
-      setUser(null);
-      
-      // Call backend logout
+      // Call backend logout first
       await fetch(`${baseUrl}/signOut`, {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        cache: 'no-store',
       });
+      
+      // Clear local state after successful logout
+      setUser(null);
       
       // Redirect to sign in page
       window.location.href = '/signIn';

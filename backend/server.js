@@ -87,17 +87,37 @@ sessionStore.on('connect', () => {
 // Session configuration
 const sessionConfig = {
   store: sessionStore,
-  secret: process.env.SESSION_SECRET,
-  resave: false,
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: true,  // Changed to true to ensure session is saved to store
   saveUninitialized: false,
   proxy: true,
-  name: 'todo-session',  // Custom session cookie name
+  name: 'todo-session',
+  rolling: true,  // Reset maxAge on every request
   cookie: {
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: process.env.NODE_ENV === "production" ? ".vercel.app" : undefined
+    domain: process.env.NODE_ENV === "production" ? ".vercel.app" : "localhost",
+    path: '/',
+    // Enable this if you're behind a proxy (like on Render/Vercel)
+    // sameSite: 'none',
+    // secure: true,
+  },
+  // Add this to help with session saving
+  saveUninitialized: false, // Don't create session until something stored
+  resave: true, // Force save of session for each request
+  // This helps with session saving
+  store: sessionStore,
+  // Add this to help with proxy issues
+  proxy: true,
+  // Add this to help with secure cookies
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined,
+    httpOnly: true
   }
 };
 
@@ -106,18 +126,37 @@ app.use(session(sessionConfig));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Debug middleware to check session state
+// Enhanced debug middleware
 app.use((req, res, next) => {
-  console.log("Request to:", req.path);
+  console.log("\n--- New Request ---");
+  console.log("Method:", req.method);
+  console.log("Path:", req.path);
   console.log("Session ID:", req.sessionID);
   console.log("Session:", req.session);
   console.log("User:", req.user);
-  console.log("Is authenticated:", req.isAuthenticated());
+  console.log("Authenticated:", req.isAuthenticated());
+  console.log("Headers:", {
+    cookie: req.headers.cookie,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    'user-agent': req.headers['user-agent']
+  });
   
-  // Check if session was modified
   if (req.session) {
-    console.log("Session modified:", req.session.cookie.originalMaxAge);
+    console.log("Session cookie:", {
+      originalMaxAge: req.session.cookie.originalMaxAge,
+      expires: req.session.cookie.expires,
+      domain: req.session.cookie.domain,
+      secure: req.session.cookie.secure,
+      sameSite: req.session.cookie.sameSite
+    });
   }
+  
+  // Add CORS headers to every response
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,UPDATE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
   
   next();
 });
