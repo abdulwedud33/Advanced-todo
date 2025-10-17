@@ -88,38 +88,20 @@ sessionStore.on('connect', () => {
 
 // Session configuration
 const sessionConfig = {
-  store: sessionStore,
   secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: true,  // Changed to true to ensure session is saved to store
+  store: sessionStore,
+  resave: false,
   saveUninitialized: false,
   proxy: true,
   name: 'todo-session',
-  rolling: true,  // Reset maxAge on every request
+  rolling: true,
   cookie: {
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: process.env.NODE_ENV === "production" ? ".vercel.app" : "localhost",
-    path: '/',
-    // Enable this if you're behind a proxy (like on Render/Vercel)
-    // sameSite: 'none',
-    // secure: true,
-  },
-  // Add this to help with session saving
-  saveUninitialized: false, // Don't create session until something stored
-  resave: true, // Force save of session for each request
-  // This helps with session saving
-  store: sessionStore,
-  // Add this to help with proxy issues
-  proxy: true,
-  // Add this to help with secure cookies
-  cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined,
-    httpOnly: true
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : 'localhost',
+    path: '/'
   }
 };
 
