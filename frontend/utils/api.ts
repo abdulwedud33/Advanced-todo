@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://advanced-todo-lz04.onrender.com';
 
 // Helper function to get auth headers
 export const getAuthHeaders = (): Record<string, string> => {
@@ -9,9 +9,14 @@ export const getAuthHeaders = (): Record<string, string> => {
   // Only access localStorage in browser environment
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
+    console.log('Current token:', token); // Debug log
     if (token) {
       // Ensure token has 'Bearer ' prefix
-      headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      headers['Authorization'] = authToken;
+      console.log('Setting Authorization header with token'); // Debug log
+    } else {
+      console.log('No token found in localStorage'); // Debug log
     }
   }
   
@@ -28,6 +33,9 @@ export const apiRequest = async <T>(
     ...getAuthHeaders(),
     ...(options.headers || {})
   };
+  
+  console.log('Making request to:', url); // Debug log
+  console.log('Request headers:', headers); // Debug log
 
   try {
     const response = await fetch(url, {
