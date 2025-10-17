@@ -52,11 +52,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Auth status response:', response.status, response.ok);
       
       if (response.ok) {
-        const authData = await response.json();
-        console.log('Auth data received:', authData);
-        if (authData.authenticated && authData.user) {
-          console.log('Setting user:', authData.user);
-          setUser(authData.user);
+        const data = await response.json();
+        console.log('Auth data received:', data);
+        
+        if (data.isAuthenticated && data.user) {
+          console.log('User authenticated:', data.user);
+          setUser({
+            _id: data.user._id,
+            name: data.user.name,
+            email: data.user.email
+          });
         } else {
           console.log('User not authenticated');
           setUser(null);
@@ -77,10 +82,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    setUser(null);
-    // Redirect to sign in page
-    window.location.href = `${baseUrl}/signOut`;
+  const logout = async () => {
+    try {
+      // Clear local state
+      setUser(null);
+      
+      // Call backend logout
+      await fetch(`${baseUrl}/signOut`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      // Redirect to sign in page
+      window.location.href = '/signIn';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still redirect even if logout fails
+      window.location.href = '/signIn';
+    }
   };
 
   useEffect(() => {

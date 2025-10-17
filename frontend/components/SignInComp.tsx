@@ -8,14 +8,24 @@ import { useRouter } from "next/navigation";
 const SignInComp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { user, loading } = useAuth();
+  const { user, loading, checkAuth } = useAuth();
   const router = useRouter();
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 
-  // Redirect if already authenticated
+  // Handle OAuth callback and redirects
   useEffect(() => {
-    if (!loading && user) {
-      router.push("/");
+    // Check for OAuth success
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get('auth');
+    
+    if (authStatus === 'success') {
+      // Force a refresh of auth state
+      checkAuth().then(() => {
+        router.push('/');
+      });
+    } else if (!loading && user) {
+      // Regular redirect if already authenticated
+      router.push('/');
     }
   }, [user, loading, router]);
 
@@ -38,9 +48,19 @@ const SignInComp = () => {
           <h2 className="text-2xl font-bold text-center mb-6">SignIn</h2>
 
           <button
-            onClick={() => {
-              // Handle Google sign-in logic here
-              window.location.href = `${baseUrl}/auth/google`;
+            onClick={async (e) => {
+              e.preventDefault();
+              try {
+                // Store the current URL to redirect back after login
+                const redirectUrl = window.location.origin;
+                localStorage.setItem('redirectAfterLogin', redirectUrl);
+                
+                // Redirect to backend OAuth endpoint
+                window.location.href = `${baseUrl}/auth/google`;
+              } catch (error) {
+                console.error('Error during Google sign-in:', error);
+                // Optionally show error to user
+              }
             }}
             className="w-full flex items-center justify-center gap-3 hover:cursor-pointer px-2 py-2 mb-4 bg-white border border-gray-300 rounded-xl shadow hover:shadow-md transition text-lg"
           >

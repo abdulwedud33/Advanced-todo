@@ -29,13 +29,26 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-
-app.use(cors({
-  origin: [process.env.FRONTEND_URL, "http://localhost:3000"],
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:3000"];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ["GET", "POST", "PATCH", "DELETE"],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
-}));
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+  exposedHeaders: ['set-cookie']
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 app.use(express.static("public"));
 
@@ -67,19 +80,24 @@ sessionStore.on('connect', () => {
   console.log('Session store connected to MongoDB');
 });
 
-app.use(session({
+// Session configuration
+const sessionConfig = {
   store: sessionStore,
   secret: process.env.SESSION_SECRET,
-  resave: true,  // Change to true
-  saveUninitialized: true,
-  proxy: true,   // Add this
+  resave: false,
+  saveUninitialized: false,
+  proxy: true,
+  name: 'todo-session',  // Custom session cookie name
   cookie: {
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    domain: process.env.NODE_ENV === "production" ? ".onrender.com" : undefined
   }
-}));
+};
+
+app.use(session(sessionConfig));
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -290,10 +308,9 @@ app.get("/auth/status", (req, res) => {
   console.log("Auth status check - User:", req.user);
   console.log("Auth status check - Is authenticated:", req.isAuthenticated());
   
-  if (req.isAuthenticated() && req.user) {
-    console.log("User is authenticated, returning user data");
-    res.json({ 
-      authenticated: true, 
+  if (req.isAuthenticated()) {
+    return res.status(200).json({
+      isAuthenticated: true,
       user: {
         _id: req.user._id,
         name: req.user.name,
