@@ -93,8 +93,8 @@ sessionStore.on('connect', () => {
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   store: sessionStore,
-  resave: false,
-  saveUninitialized: false,
+  resave: true,  // Changed to true to ensure session is saved even if not modified
+  saveUninitialized: true,  // Changed to true to save new sessions
   proxy: true,
   name: 'todo-session',
   rolling: true,
@@ -103,7 +103,7 @@ const sessionConfig = {
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : 'localhost',
+    domain: process.env.NODE_ENV === 'production' ? 'advanced-todo-sable.vercel.app' : 'localhost',
     path: '/'
   }
 };
