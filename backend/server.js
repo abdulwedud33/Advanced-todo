@@ -237,27 +237,26 @@ app.get(
       // Add token to URL
       redirectUrl.searchParams.set('token', token);
       
+      // Set secure cookie with the JWT token
+      res.cookie('auth_token', token, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+      
       // Redirect to frontend with token
       console.log("Redirecting to:", redirectUrl.toString());
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error("Error in OAuth callback:", error);
-      res.redirect(`/login?error=server_error`);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/signIn?error=server_error`);
     }
-        
-        // Set secure cookie attributes
-        res.cookie('connect.sid', req.sessionID, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined,
-          maxAge: 24 * 60 * 60 * 1000 // 24 hours
-        });
-        
-        // Redirect to frontend with success parameter
-        res.redirect(`${frontendUrl}/?auth=success`);
-      });
+  }
+);
  
 
 app.get("/signOut", (req, res) => {
