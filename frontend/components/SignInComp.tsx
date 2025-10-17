@@ -141,12 +141,6 @@ const SignInComp = () => {
             </button>
           </form>
         </div>
-        <button
-          onClick={logout}
-          className="text-gray-400 hover:text-black"
-        >
-          SignOut
-        </button>
       </div>
     );
   };
