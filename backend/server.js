@@ -32,8 +32,12 @@ app.use(bodyParser.json());
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:3000"];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL, 
+      "http://localhost:3000",
+      "https://advanced-todo-sable.vercel.app"
+    ];
+    if (!origin || allowedOrigins.some(allowed => origin.startsWith(allowed))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -93,7 +97,7 @@ const sessionConfig = {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: process.env.NODE_ENV === "production" ? ".onrender.com" : undefined
+    domain: process.env.NODE_ENV === "production" ? ".vercel.app" : undefined
   }
 };
 
