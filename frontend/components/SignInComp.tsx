@@ -52,7 +52,11 @@ const SignInComp = () => {
   }
 
   const handleGoogleSignIn = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/google`;
+    // Determine the base URL based on the environment
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://advanced-todo-sable.vercel.app';
+    // Use the new callback URL that points to our API route
+    const callbackUrl = `${window.location.origin}/api/auth/callback`;
+    window.location.href = `${baseUrl}/auth/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   };
 
   return (

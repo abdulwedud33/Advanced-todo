@@ -232,7 +232,7 @@ app.get(
       
       // Get frontend URL from environment or use default
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const redirectUrl = new URL(`${frontendUrl}/auth/callback`);
+      const redirectUrl = new URL(`${frontendUrl}/api/auth/callback`);
       
       // Add token to URL
       redirectUrl.searchParams.set('token', token);
