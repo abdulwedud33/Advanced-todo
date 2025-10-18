@@ -354,10 +354,10 @@ app.get("/signIn", (req, res) => {
 });
 
 // Get all incomplete tasks for the authenticated user
-app.get("/", ensureAuthenticated, async (req, res) => {
+app.get("/", authenticateJWT, async (req, res) => {
   try {
     const tasks = await Task.find({ 
-      userId: req.user._id, 
+      userId: req.user.id, 
       isCompleted: false 
     }).sort({ createdAt: -1 });
     
@@ -428,7 +428,7 @@ app.get("/user", authenticateJWT, async (req, res) => {
   console.log("User:", req.user);
   console.log("isAuthenticated:", req.isAuthenticated?.());
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     res.json(user);
   } catch (error) {
     console.error("Error fetching user:", error);
