@@ -91,7 +91,7 @@ const authenticateJWT = (req, res, next) => {
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
 
 // Configure CORS
 const allowedOrigins = [
@@ -200,7 +200,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3001/auth/google/callback",
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/auth/google/callback",
       passReqToCallback: true
     },
     async (req, accessToken, refreshToken, profile, done) => {

@@ -9,7 +9,7 @@ interface CompletedCompProps {
   content: string;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
 const markTaskAsDelete = async (id: string) => {
   try {
     // Get the JWT token from localStorage (consistent with AuthContext)
