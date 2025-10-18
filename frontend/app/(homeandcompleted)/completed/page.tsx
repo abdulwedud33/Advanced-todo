@@ -7,12 +7,24 @@ import { useAuth } from "@/contexts/AuthContext";
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 
 async function fetchData() {
+  // Get the JWT token from localStorage (consistent with AuthContext)
+  const token = localStorage.getItem('token');
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add Authorization header if token exists
+  if (token) {
+    // Ensure token has 'Bearer ' prefix if not already present
+    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    headers['Authorization'] = authToken;
+  }
+
   const res = await fetch(`${baseUrl}/completed`, {
     method: "GET",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
   });
   if (!res.ok) {
     console.log("Failed to fetch data");

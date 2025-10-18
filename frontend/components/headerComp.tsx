@@ -23,33 +23,38 @@ export default function Header() {
       return;
     }
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
-      // Get the JWT token from cookies
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token='))
-        ?.split('=')[1];
-
+      // Get the JWT token from localStorage (consistent with AuthContext)
+      const token = localStorage.getItem('token');
+      
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
 
       // Add Authorization header if token exists
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        // Ensure token has 'Bearer ' prefix if not already present
+        const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+        headers['Authorization'] = authToken;
+      } else {
+        setError("No authentication token found. Please sign in again.");
+        return;
       }
 
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://advanced-todo-lz04.onrender.com';
       const res = await fetch(`${baseUrl}/add`, {
         method: "POST",
         credentials: "include",
         headers,
         body: JSON.stringify({ title, content }),
       });
+      
       if (!res.ok) {
-        console.log("Failed to add task");
-        setError("Failed to add task. Please try again.");
+        const errorData = await res.json().catch(() => ({}));
+        console.log("Failed to add task:", errorData);
+        setError(errorData.error || "Failed to add task. Please try again.");
         return;
       }
+      
       setTitle("");
       setContent("");
       setError("");

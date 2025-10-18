@@ -12,12 +12,24 @@ interface CompletedCompProps {
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 const markTaskAsDelete = async (id: string) => {
   try {
+    // Get the JWT token from localStorage (consistent with AuthContext)
+    const token = localStorage.getItem('token');
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    // Add Authorization header if token exists
+    if (token) {
+      // Ensure token has 'Bearer ' prefix if not already present
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      headers['Authorization'] = authToken;
+    }
+
     const res = await fetch(`${baseUrl}/completed/delete`, {
       method: "DELETE",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ id }),
     });
     if (!res.ok) {
