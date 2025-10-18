@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://advanced-todo-lz04.onrender.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
 
 // Helper function to get auth headers
 export const getAuthHeaders = (): Record<string, string> => {

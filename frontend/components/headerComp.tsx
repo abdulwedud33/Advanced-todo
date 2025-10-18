@@ -40,7 +40,7 @@ export default function Header() {
         return;
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://advanced-todo-lz04.onrender.com';
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
       const res = await fetch(`${baseUrl}/add`, {
         method: "POST",
         credentials: "include",
