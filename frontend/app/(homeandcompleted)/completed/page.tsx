@@ -52,6 +52,11 @@ export default function CompletedTaskPage() {
     }
   };
 
+  // Function to refresh data after operations
+  const refreshData = () => {
+    getUserData();
+  };
+
   useEffect(() => {
     if (isAuthenticated && user) {
       getUserData();
@@ -77,6 +82,7 @@ export default function CompletedTaskPage() {
               key={item._id}
               title={item.title}
               content={item.content}
+              onRefresh={refreshData}
             />
           ))}
         </div>

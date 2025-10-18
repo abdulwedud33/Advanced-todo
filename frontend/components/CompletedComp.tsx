@@ -7,6 +7,7 @@ interface CompletedCompProps {
   value: string;
   title: string;
   content: string;
+  onRefresh?: () => void;
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
@@ -44,12 +45,13 @@ const markTaskAsDelete = async (id: string) => {
 };
 
 const CompletedComp: React.FC<CompletedCompProps> = (props) => {
-  const router = useRouter(); // Initialize the router
-
   const handleDelete = async () => {
     const success = await markTaskAsDelete(props._id); // Call the delete function
     if (success) {
-      router.refresh(); // Refresh the page to reflect changes
+      // Call the refresh function passed from parent
+      if (props.onRefresh) {
+        props.onRefresh();
+      }
     } else {
       alert("Failed to delete task. Please try again.");
     }
