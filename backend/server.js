@@ -113,7 +113,7 @@ const corsOptions = {
     return callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
@@ -122,7 +122,10 @@ const corsOptions = {
     'Origin',
     'Access-Control-Allow-Credentials',
     'Cache-Control',
-    'Pragma'
+    'Pragma',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Methods',
+    'Access-Control-Allow-Headers'
   ],
   exposedHeaders: ['set-cookie', 'access-control-allow-credentials', 'Content-Range', 'X-Content-Range'],
   optionsSuccessStatus: 200, // Some legacy browsers choke on 204
@@ -133,6 +136,20 @@ const corsOptions = {
 // Apply CORS middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Additional CORS handling for PATCH requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 // Body parser middleware
 app.use(bodyParser.json());
@@ -152,14 +169,6 @@ mongoose.connect(mongoUri)
 });
 
 app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-
-app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 app.use(express.static("public"));
 
